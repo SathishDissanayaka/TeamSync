@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
-import { Box, Flex, Heading, Text, VStack, Button, Grid, GridItem } from "@chakra-ui/react";
+import { Box, Flex, Heading, Text, VStack, Button, Grid, GridItem, IconButton,
+  Popover, PopoverTrigger, PopoverContent, PopoverArrow, PopoverCloseButton, PopoverBody, Spinner } from "@chakra-ui/react";
+  
 import { FiHome, FiSend, FiFileText, FiUsers, FiPenTool, FiLogOut } from "react-icons/fi";
 import axios from "axios";
 import Requests from "./Requests";
 import Tasks from "./Tasks";
 import Collaborations from "./Collaborations";
 import Feedback from "./Feedback";
+
+import NotificationBell from "../components/NotificationBell";
+
 
 const DashboardHome = () => {
   const [fullName, setFullName] = useState("");
@@ -69,15 +74,26 @@ const DashboardHome = () => {
 
   const fetchRecentActivities = async (companyID) => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/requests/ongoing/${companyID}`);
-      const sortedActivities = res.data
+       // Fetch both in parallel(sahan changes)
+       const [ongoingRes, declinedRes] = await Promise.all([
+        axios.get(`http://localhost:5000/api/requests/ongoing/${companyID}`),
+        axios.get(`http://localhost:5000/api/requests/declined/${companyID}`)
+      ]);
+
+      // Merge, sort by updatedAt desc, take top 10
+      const merged = [
+        ...ongoingRes.data,
+        ...declinedRes.data
+      ]
         .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
         .slice(0, 10);
-      setRecentActivities(sortedActivities);
+
+      setRecentActivities(merged);
     } catch (err) {
       console.error("Error fetching recent activities", err);
     }
   };
+
 
   const fetchCollaborations = async (companyID) => {
     try {
@@ -163,10 +179,20 @@ const UserSidebar = () => {
   const navigate = useNavigate();
 
   return (
+        //sahan changes notification button
     <Box bg="blue.200" w="250px" minH="100vh" p="4">
-      <Heading size="md" mb="8">
-        TeamSync
-      </Heading>
+           {/* Sidebar header with the bell popover */}
+      <Flex align="center" mb="8">
+        <Heading size="lg" fontSize="2xl">TeamSync</Heading>
+
+       {/* the bell will fetch & pop over on click */}
+        <Box ml="auto">
+          <NotificationBell companyID={localStorage.getItem("companyID")}
+            iconSize={28}      
+            buttonSize="md"  />
+        </Box>
+      </Flex>
+
       <VStack align="start" spacing="4">
         <Button variant="ghost" leftIcon={<FiHome />} onClick={() => navigate("/dashboard")}>
           Dashboard
