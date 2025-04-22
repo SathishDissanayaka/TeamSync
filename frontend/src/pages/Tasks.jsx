@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Box, Heading, Text, VStack, Button, Flex, Input, Select } from "@chakra-ui/react";
 import axios from "axios";
-import { useToast } from "@chakra-ui/react";
+//sahan changes (i added some elements from chakra)
+import { Box, Heading, Text, VStack, Flex, Input, Select,Button, useToast, useDisclosure,Modal, ModalOverlay, ModalContent, ModalHeader,
+          ModalCloseButton, ModalBody, ModalFooter,FormControl, FormLabel, Textarea} from "@chakra-ui/react";
+
 
 const MyTasks = () => {
   const [incomingRequests, setIncomingRequests] = useState([]);
@@ -12,6 +14,12 @@ const MyTasks = () => {
   const [incomingSortOption, setIncomingSortOption] = useState("priority");
   const toast = useToast();
 
+    //sahan changes (decline forum modal)
+    const { isOpen, onOpen, onClose } = useDisclosure();
+    const [currentId, setCurrentId]   = useState(null);
+    const [reason, setReason]         = useState('');
+    const [altDate, setAltDate]       = useState('');
+
   // Retrieve companyID from localStorage
   const companyID = localStorage.getItem("companyID");
 
@@ -19,6 +27,7 @@ const MyTasks = () => {
     // Fetch requests assigned to the current user
     const fetchRequests = async () => {
       try {
+        // Get requests that are assigned to the current user
         const res = await axios.get(`http://localhost:5000/api/requests/assigned/${companyID}`);
         setIncomingRequests(res.data);
 
@@ -40,24 +49,30 @@ const MyTasks = () => {
     const fetchUsers = async () => {
       try {
         const res = await axios.get("http://localhost:5000/api/admin/users");
+
+        // Create a map where the key is companyID and value is fullName
         const usersMap = res.data.reduce((acc, user) => {
           acc[user.companyID] = user.fullName;
           return acc;
         }, {});
+        // Update the state with the processed data
         setUsers(usersMap);
       } catch (err) {
         console.error("Error fetching users", err);
       }
     };
-
+    //calling above functions
     fetchRequests();
     fetchUsers();
-  }, [companyID, toast]);
+  }, [companyID, toast]); //dependency array,(re-run if companyid changes)
 
+    // accept a request funcion
   const handleAcceptRequest = async (id) => {
     try {
       const res = await axios.put(`http://localhost:5000/api/requests/accept/${id}`);
+      // Remove the accepted request from the incomingRequests list
       setIncomingRequests(incomingRequests.filter(request => request._id !== id));
+      // Add the accepted request to the todoRequests list
       setTodoRequests([...todoRequests, res.data]);
       toast({
         title: "Request accepted.",
@@ -78,22 +93,46 @@ const MyTasks = () => {
     }
   };
 
-  const handleDeclineRequest = async (id) => {
+    //declines Task (sahan changes)
+  // opens the modal
+
+  const handleDeclineRequest = (id) => {
+    setCurrentId(id);
+    onOpen();
+  };
+
+// called when the modal’s “Submit” button is clicked
+  const handleDeclineSubmit = async () => {
+    if (!reason || !altDate) {
+      return toast({ title: "Please fill in both fields", status: "error" });
+    }
+    // block past dates
+    if (new Date(altDate) < new Date(new Date().toDateString())) {
+      return toast({ title: "Date cannot be in the past", status: "error" });
+    }
+
     try {
-      await axios.put(`http://localhost:5000/api/requests/decline/${id}`);
-      setIncomingRequests(incomingRequests.filter(request => request._id !== id));
+      await axios.put(
+        `http://localhost:5000/api/requests/decline/${currentId}`,
+        { declinedReason: reason, alternativeDate: altDate }
+      );
+      // remove from list
+      setIncomingRequests(rs => rs.filter(r => r._id !== currentId));
       toast({
-        title: "Request declined.",
-        description: "The request has been declined.",
+        title: "Request declined",
+        description: "Your reason and new date have been saved.",
         status: "success",
         duration: 5000,
         isClosable: true,
       });
+      onClose();
+      setReason("");
+      setAltDate("");
     } catch (err) {
       console.error("Error declining request", err);
       toast({
         title: "Error",
-        description: "There was an error declining the request.",
+        description: err.response?.data?.error || "Failed to decline.",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -101,9 +140,12 @@ const MyTasks = () => {
     }
   };
 
+
+    // Mark complete a task 
   const handleMarkAsDone = async (id) => {
     try {
       await axios.put(`http://localhost:5000/api/requests/complete/${id}`);
+            // Remove the completed request from the todoRequests list
       setTodoRequests(todoRequests.filter(request => request._id !== id));
       toast({
         title: "Request completed.",
@@ -123,23 +165,25 @@ const MyTasks = () => {
       });
     }
   };
-
+  // Helper function to get the full name of the requester using their companyID
   const getRequesterName = (assignedBy) => {
     return users[assignedBy] || "Unknown";
   };
 
+  // Update search term when user types in the search box
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
   };
-
+  // Update the sorting option for the to-do list
   const handleSortChange = (e) => {
     setSortOption(e.target.value);
   };
-
+  // Update the sorting option for incoming requests
   const handleIncomingSortChange = (e) => {
     setIncomingSortOption(e.target.value);
   };
 
+  // Sort the to-do requests based on (priority or deadline) 
   const sortedTodoRequests = [...todoRequests].sort((a, b) => {
     if (sortOption === "priority") {
       const priorityOrder = { High: 1, Medium: 2, Low: 3 };
@@ -150,6 +194,7 @@ const MyTasks = () => {
     return 0;
   });
 
+    //same logic
   const sortedIncomingRequests = [...incomingRequests].sort((a, b) => {
     if (incomingSortOption === "priority") {
       const priorityOrder = { High: 1, Medium: 2, Low: 3 };
@@ -160,6 +205,7 @@ const MyTasks = () => {
     return 0;
   });
 
+    // Filter the to-do requests based on the search term 
   const filteredTodoRequests = sortedTodoRequests.filter((request) =>
     request.taskName.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -171,6 +217,7 @@ const MyTasks = () => {
         <Box flex="1" mr="8" bg="gray.200" p="6" borderRadius="md" boxShadow="md" minH="80vh">
           <Heading size="md" mb="4">To-do</Heading>
           <Flex mb="4" justify="space-between">
+            {/* Search bar */}
             <Input
               placeholder="Search by request name"
               value={searchTerm}
@@ -183,7 +230,7 @@ const MyTasks = () => {
               <option value="deadline">Sort by Deadline</option>
             </Select>
           </Flex>
-          <VStack spacing="4">
+          <VStack spacing="4">  {/* Vertically Align the stack */}
             {filteredTodoRequests.map(request => (
               <Box key={request._id} p="4" boxShadow="md" borderRadius="md" bg="white" w="100%" border="1px" borderColor="gray.200">
                 <Flex justify="space-between">
@@ -204,6 +251,7 @@ const MyTasks = () => {
         <Box flex="1" bg="gray.200" p="6" borderRadius="md" boxShadow="md" minH="80vh">
           <Heading size="md" mb="4">Incoming Requests</Heading>
           <Flex mb="4" justify="space-between">
+            {/* select sort option */}
             <Select value={incomingSortOption} onChange={handleIncomingSortChange} width="35%" outline={"1px solid"}>
               <option value="priority">Sort by Priority</option>
               <option value="deadline">Sort by Deadline</option>
@@ -230,6 +278,47 @@ const MyTasks = () => {
           </VStack>
         </Box>
       </Flex>
+
+      {/* Modal for Declining a Request (Sahan Changes) */}
+             
+      <Modal isOpen={isOpen} onClose={() => {
+      onClose();
+      setReason("");
+      setAltDate(""); }}>
+
+      <ModalOverlay/>
+      <ModalContent>
+        <ModalHeader>Decline Request</ModalHeader>
+        <ModalCloseButton/>
+        <ModalBody>
+          <FormControl isRequired>
+            <FormLabel>Reason</FormLabel>
+            <Textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+            />
+          </FormControl>
+          <FormControl mt={4} isRequired>
+            <FormLabel>Alternative Date</FormLabel>
+            <Input
+              type="date"
+              min={new Date().toISOString().split('T')[0]}
+              value={altDate}
+              onChange={e => setAltDate(e.target.value)}
+            />
+          </FormControl>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" onClick={() => { onClose(); setReason(""); setAltDate("");}}>
+            Cancel
+          </Button>
+          <Button colorScheme="red" ml={3} onClick={handleDeclineSubmit}>
+            Decline
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+
     </Box>
   );
 };

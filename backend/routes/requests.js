@@ -3,6 +3,10 @@ const router = express.Router();
 const Request = require('../models/Request');
 const Collaboration = require('../models/Collaboration');
 
+//sahan changes
+const Declined = require('../models/Declined');
+
+//Sathish Requesting Sub-System
 // Create a new request
 router.post('/', async (req, res) => {
   const { taskName, description, priority, deadline, assignee, assignedBy } = req.body;
@@ -45,6 +49,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+//SAHAN - MANAGEMENT
 // Accept a request
 router.put('/accept/:id', async (req, res) => {
   try {
@@ -71,18 +76,51 @@ router.put('/accept/:id', async (req, res) => {
   }
 });
 
-// Decline a request
+// Decline a request (Sahan Changes)
 router.put('/decline/:id', async (req, res) => {
   try {
+    // 1) pull reason + date from the form body
+    const { declinedReason, alternativeDate } = req.body;
+
+    // 2) validate inputs
+    if (!declinedReason || !alternativeDate) {
+      return res.status(400).json({ error: 'Reason and alternative date are required.' });
+    }
+    const pickedDate = new Date(alternativeDate);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (pickedDate < today) {
+      return res.status(400).json({ error: 'Alternative date cannot be in the past.' });
+    }
+
+    // 3) mark the original request declined
     const updatedRequest = await Request.findByIdAndUpdate(
       req.params.id,
       { status: 'declined', declinedOn: new Date().toISOString() },
       { new: true }
     );
-    res.json(updatedRequest);
+    if (!updatedRequest) {
+      return res.status(404).json({ error: 'Request not found.' });
+    }
+
+    // 4) create a new Declined document copying fields + your two new ones
+    const declinedEntry = await Declined.create({
+      request:         updatedRequest._id,
+      title:           updatedRequest.taskName,
+      description:     updatedRequest.description,
+      assignee:        updatedRequest.assignee,     
+      assignedBy:      updatedRequest.assignedBy,        
+      declinedOn:      updatedRequest.declinedOn,    
+      declinedReason,                               
+      alternativeDate: pickedDate 
+    });
+
+    // 5) respond with both if you like, or just the updatedRequest
+    return res.status(201).json({ updatedRequest, declinedEntry });
+
   } catch (err) {
     console.error('Failed to decline request:', err);
-    res.status(500).json({ error: 'Failed to decline request' });
+    return res.status(500).json({ error: 'Failed to decline request.' });
   }
 });
 
@@ -137,6 +175,7 @@ router.get('/completed/:companyID', async (req, res) => {
   }
 });
 
+//for collaborations ==SAHAN
 // Fetch all ongoing requests
 router.get('/ongoing', async (req, res) => {
   try {
@@ -148,6 +187,7 @@ router.get('/ongoing', async (req, res) => {
   }
 });
 
+//Incoming list SAHAN
 // Fetch requests assigned to a specific user by companyID
 router.get('/assigned/:companyID', async (req, res) => {
   try {
@@ -157,7 +197,7 @@ router.get('/assigned/:companyID', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+//to-do list SAHAN
 // Fetch ongoing requests for a specific user by companyID
 router.get('/ongoing/:companyID', async (req, res) => {
   try {
@@ -167,6 +207,9 @@ router.get('/ongoing/:companyID', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+//under-developing section
+// == Get the endpoint from here for declined tasks windows ====
 
 // Fetch declined requests for a specific user by companyID
 router.get('/declined/:companyID', async (req, res) => {
@@ -178,4 +221,14 @@ router.get('/declined/:companyID', async (req, res) => {
   }
 });
 
+// Fetch all declined requests (not user‑specific) for ManagerView (Sahan)
+router.get('/declined', async (req, res) => {
+  try {
+    const entries = await Declined.find({});
+    return res.json(entries);
+  } catch (err) {
+    console.error('Failed to fetch all declined entries:', err);
+    return res.status(500).json({ error: 'Failed to fetch all declined entries' });
+  }
+});
 module.exports = router;

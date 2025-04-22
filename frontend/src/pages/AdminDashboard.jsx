@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Box, Flex, Heading, Text, VStack, Button, Grid, GridItem } from '@chakra-ui/react';
-import { FiHome, FiUsers, FiFileText, FiBell, FiTerminal, FiLogOut, FiActivity } from 'react-icons/fi';
+import { FiHome, FiUsers, FiFileText, FiBell, FiTerminal, FiLogOut, FiActivity,FiSend,FiSettings} from 'react-icons/fi';
 import axios from 'axios';
 import UserManagement from './UserManagement'; // Import the User Management component
 import Evaluation from './Evaluation'; // Import the Evaluation component
+//sahan changes
+import DeclinedTasks from './DeclinedTasks';
 
 // Dashboard Home component that fetches profile data
 const DashboardHome = () => {
@@ -189,6 +191,13 @@ const AdminSidebar = () => {
         <Button variant="ghost" leftIcon={<FiActivity />} onClick={() => navigate("/admindashboard/evaluation")}>
           Evaluation
         </Button>
+        
+        //sahan changes
+        <Button variant="ghost" leftIcon={<FiSend />} onClick={() => navigate("/admindashboard/declinedtask")}>
+          Declined Requests
+        </Button>
+
+
         {(role === "Admin" || role === "BusinessOwner" || role === "Manager")&& (
           <Button variant="ghost" leftIcon={<FiUsers />} onClick={() => navigate("/admindashboard/user-management")}>
             User Management
@@ -217,6 +226,7 @@ const AdminDashboardLayout = () => (
       <Routes>
         <Route index element={<DashboardHome />} />
         <Route path="dashboard" element={<DashboardHome />} />
+        <Route path="declinedtask" element={<DeclinedTasks />} /> // Declined Tasks page sahan changes
         <Route path="user-management" element={<UserManagement />} />
         <Route path="evaluation" element={<Evaluation />} />
         <Route
