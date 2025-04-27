@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Feedback = require('../models/Feedback');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 // Create a new feedback
 router.post('/', async (req, res) => {
@@ -15,6 +17,44 @@ router.post('/', async (req, res) => {
     });
 
     const savedFeedback = await newFeedback.save();
+
+    // Prefer the name sent from the frontend, fallback to lookup, then fallback to TS number
+    let employeeName = (req.body.user && req.body.user.trim()) || "";
+    if (!employeeName && employee) {
+      const employeeUser = await User.findOne({ companyID: employee });
+      if (employeeUser && employeeUser.fullName) {
+        employeeName = employeeUser.fullName;
+      } else {
+        employeeName = employee; // fallback to TS number if all else fails
+      }
+    }
+    if (!employeeName) employeeName = "Unknown Employee";
+
+    // Notify all admins (Admin, BusinessOwner, Manager)
+    const adminRoles = ['Admin', 'BusinessOwner', 'Manager'];
+    const admins = await User.find({ role: { $in: adminRoles } });
+    const notificationPromises = admins.map(async (admin) => {
+      const notification = new Notification({
+        companyID: admin.companyID,
+        userID: admin.companyID,
+        type: 'feedback',
+        title: 'New Feedback Submitted',
+        message: `New feedback submitted by ${employeeName}: ${title}`,
+        metadata: {
+          feedbackId: savedFeedback._id,
+          title,
+          description,
+          category,
+          employee
+        }
+      });
+      const savedNotification = await notification.save();
+      // Emit to all admins in real time
+      req.app.get('io').emit('notification', savedNotification);
+      return savedNotification;
+    });
+    await Promise.all(notificationPromises);
+
     res.status(201).json(savedFeedback);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create feedback' });

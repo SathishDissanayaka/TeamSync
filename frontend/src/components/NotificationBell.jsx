@@ -47,6 +47,7 @@ export default function NotificationBell({
   companyID,
   iconSize = 20,
   buttonSize = 'sm',
+  adminOnlyFeedback = false,
 }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -177,6 +178,11 @@ export default function NotificationBell({
     return <Icon size={16} />;
   };
 
+  // Filter notifications if adminOnlyFeedback is true
+  const displayedNotifications = adminOnlyFeedback
+    ? notifications.filter(n => n.type === 'feedback')
+    : notifications;
+
   return (
     <Popover placement="bottom-end">
       <PopoverTrigger>
@@ -208,7 +214,7 @@ export default function NotificationBell({
         <PopoverBody>
           {loading ? (
             <Box textAlign="center"><Spinner /></Box>
-          ) : notifications.length === 0 ? (
+          ) : displayedNotifications.length === 0 ? (
             <Text>No notifications</Text>
           ) : (
             <VStack align="stretch" spacing={2}>
@@ -220,7 +226,7 @@ export default function NotificationBell({
                   </Button>
                 )}
               </HStack>
-              {notifications.map((notification) => (
+              {displayedNotifications.map((notification) => (
                 <Box
                   key={notification._id}
                   p={2}
