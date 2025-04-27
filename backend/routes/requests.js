@@ -2,9 +2,22 @@ const express = require('express');
 const router = express.Router();
 const Request = require('../models/Request');
 const Collaboration = require('../models/Collaboration');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 
 //sahan changes
 const Declined = require('../models/Declined');
+
+// Helper function to get employee name
+const getEmployeeName = async (employeeId) => {
+  try {
+    const employee = await User.findOne({ companyID: employeeId });
+    return employee ? employee.fullName : employeeId;
+  } catch (err) {
+    console.error('Error fetching employee name:', err);
+    return employeeId;
+  }
+};
 
 //Sathish Requesting Sub-System
 // Create a new request
@@ -30,6 +43,26 @@ router.post('/', async (req, res) => {
 
     // Save request to database
     await newRequest.save();
+
+    // Get employee names
+    const assigneeName = await getEmployeeName(assignee);
+    const assignedByName = await getEmployeeName(assignedBy);
+
+    // Create notification for the assignee
+    const notification = new Notification({
+      companyID: assignee,
+      userID: assignee,
+      type: 'request',
+      title: 'New Task Request',
+      message: `${assignedByName} has assigned you a new task: ${taskName}`,
+      metadata: {
+        requestId: newRequest._id,
+        taskName,
+        priority,
+        deadline
+      }
+    });
+    await notification.save();
 
     res.status(201).json(newRequest);
   } catch (err) {
@@ -68,6 +101,23 @@ router.put('/accept/:id', async (req, res) => {
       createdAt: updatedRequest.createdAt 
     });
     await newCollaboration.save();
+
+    // Get employee names
+    const assigneeName = await getEmployeeName(updatedRequest.assignee);
+
+    // Create notification for the assigner
+    const notification = new Notification({
+      companyID: updatedRequest.assignedBy,
+      userID: updatedRequest.assignedBy,
+      type: 'accept',
+      title: 'Task Accepted',
+      message: `${assigneeName} has accepted the task: ${updatedRequest.taskName}`,
+      metadata: {
+        requestId: updatedRequest._id,
+        taskName: updatedRequest.taskName
+      }
+    });
+    await notification.save();
 
     res.json(updatedRequest);
   } catch (err) {
@@ -115,6 +165,25 @@ router.put('/decline/:id', async (req, res) => {
       alternativeDate: pickedDate 
     });
 
+    // Get employee names
+    const assigneeName = await getEmployeeName(updatedRequest.assignee);
+
+    // Create notification for the assigner
+    const notification = new Notification({
+      companyID: updatedRequest.assignedBy,
+      userID: updatedRequest.assignedBy,
+      type: 'decline',
+      title: 'Task Declined',
+      message: `${assigneeName} has declined the task: ${updatedRequest.taskName}. Reason: ${declinedReason}`,
+      metadata: {
+        requestId: updatedRequest._id,
+        taskName: updatedRequest.taskName,
+        reason: declinedReason,
+        alternativeDate: pickedDate
+      }
+    });
+    await notification.save();
+
     // 5) respond with both if you like, or just the updatedRequest
     return res.status(201).json({ updatedRequest, declinedEntry });
 
@@ -135,6 +204,23 @@ router.put('/complete/:id', async (req, res) => {
 
     // Delete the collaboration entry
     await Collaboration.findOneAndDelete({ taskName: updatedRequest.taskName, assignee: updatedRequest.assignee });
+
+    // Get employee names
+    const assigneeName = await getEmployeeName(updatedRequest.assignee);
+
+    // Create notification for the assigner
+    const notification = new Notification({
+      companyID: updatedRequest.assignedBy,
+      userID: updatedRequest.assignedBy,
+      type: 'mark_as_done',
+      title: 'Task Completed',
+      message: `${assigneeName} has completed the task: ${updatedRequest.taskName}`,
+      metadata: {
+        requestId: updatedRequest._id,
+        taskName: updatedRequest.taskName
+      }
+    });
+    await notification.save();
 
     res.json(updatedRequest);
   } catch (err) {
@@ -210,8 +296,8 @@ router.get('/ongoing/:companyID', async (req, res) => {
 
 //under-developing section
 // == Get the endpoint from here for declined tasks windows ====
-
 // Fetch declined requests for a specific user by companyID
+
 router.get('/declined/:companyID', async (req, res) => {
   try {
     const requests = await Request.find({ assignee: req.params.companyID, status: 'declined' });

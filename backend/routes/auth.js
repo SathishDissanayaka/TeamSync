@@ -269,4 +269,21 @@ router.put('/users/:id/unlock', async (req, res) => {
   }
 });
 
+// Add this route to get user details by companyID
+router.get('/user/:companyID', async (req, res) => {
+  try {
+    const user = await User.findOne({ companyID: req.params.companyID });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({
+      fullName: user.fullName,
+      companyID: user.companyID,
+      role: user.role
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
