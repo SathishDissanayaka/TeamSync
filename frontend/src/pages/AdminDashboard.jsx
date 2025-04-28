@@ -7,6 +7,7 @@ import UserManagement from './UserManagement'; // Import the User Management com
 import Evaluation from './Evaluation'; // Import the Evaluation component
 //sahan changes
 import DeclinedTasks from './DeclinedTasks';
+import NotificationBell from '../components/NotificationBell';
 
 // Dashboard Home component that fetches profile data
 const DashboardHome = () => {
@@ -179,40 +180,32 @@ const DashboardHome = () => {
 const AdminSidebar = () => {
   const navigate = useNavigate();
   const role = localStorage.getItem("role");
+  const companyID = localStorage.getItem("companyID");
 
   return (
     <Box bg="blue.300" w="250px" minH="100vh" p="4">
-      <Heading size="md" mb="8">TeamSync Admin</Heading>
+      {/* Sidebar header with the bell popover */}
+      <Flex align="center" mb="8">
+        <Heading size="md">TeamSync Admin</Heading>
+        <Box ml="auto">
+          <NotificationBell companyID={companyID} iconSize={24} buttonSize="md" adminOnlyFeedback={true} />
+        </Box>
+      </Flex>
       <VStack align="start" spacing="4">
-        <Button variant="ghost" leftIcon={<FiHome />} onClick={() => navigate("/admindashboard")}>
-          Dashboard
-        </Button>
-
-        <Button variant="ghost" leftIcon={<FiActivity />} onClick={() => navigate("/admindashboard/evaluation")}>
-          Evaluation
-        </Button>
-        
-        //sahan changes
-        <Button variant="ghost" leftIcon={<FiSend />} onClick={() => navigate("/admindashboard/declinedtask")}>
-          Declined Requests
-        </Button>
-
-
-        {(role === "Admin" || role === "BusinessOwner" || role === "Manager")&& (
-          <Button variant="ghost" leftIcon={<FiUsers />} onClick={() => navigate("/admindashboard/user-management")}>
-            User Management
-          </Button>
+        <Button variant="ghost" leftIcon={<FiHome />} onClick={() => navigate("/admindashboard")}>Dashboard</Button>
+        <Button variant="ghost" leftIcon={<FiActivity />} onClick={() => navigate("/admindashboard/evaluation")}>Evaluation</Button>
+        {/* sahan changes */}
+        <Button variant="ghost" leftIcon={<FiSend />} onClick={() => navigate("/admindashboard/declinedtask")}>Declined Requests</Button>
+        {(role === "Admin" || role === "BusinessOwner" || role === "Manager") && (
+          <Button variant="ghost" leftIcon={<FiUsers />} onClick={() => navigate("/admindashboard/user-management")}>User Management</Button>
         )}
       </VStack>
       <Box mt="4">
         <Button variant="ghost" leftIcon={<FiLogOut />} onClick={() => {
-          // Optionally clear the token on logout
           localStorage.removeItem('token');
           localStorage.removeItem('role');
           navigate("/login");
-        }}>
-          Logout
-        </Button>
+        }}>Logout</Button>
       </Box>
     </Box>
   );
