@@ -49,9 +49,10 @@ const DeclinedTasks = () => {
 
   const getName = (code) => users[code] || code;
 
-  // filter by assignee's name
+  // filter by both assignee's name and task name
   const filtered = entries.filter(e =>
-    getName(e.assignee).toLowerCase().includes(searchTerm.toLowerCase())
+    getName(e.assignee).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleExportPDF = () => {
@@ -77,7 +78,7 @@ const DeclinedTasks = () => {
       <Heading mb="6">Declined Requests</Heading>
       <Flex mb="4" justify="space-between">
         <Input
-          placeholder="Search by Assignee"
+          placeholder="Search by Employee Name or Task Name"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           width="40%"
