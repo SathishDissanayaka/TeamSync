@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
   Box, Heading, Table, Thead, Tbody, Tr, Th, Td,
-  Input, Flex, useToast
+  Input, Flex, useToast, Button
 } from "@chakra-ui/react";
 import axios from "axios";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const DeclinedTasks = () => {
   const [entries, setEntries]     = useState([]);
@@ -47,10 +49,28 @@ const DeclinedTasks = () => {
 
   const getName = (code) => users[code] || code;
 
-  // filter by assignee’s name
+  // filter by assignee's name
   const filtered = entries.filter(e =>
     getName(e.assignee).toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const title = 'Declined Requests Report';
+    doc.text(title, 20, 10);
+    autoTable(doc, {
+      head: [['Task Name', 'Requested By', 'Declined By', 'Declined On', 'Reason', 'Alternative Date']],
+      body: filtered.map(entry => [
+        entry.title,
+        getName(entry.assignedBy),
+        getName(entry.assignee),
+        new Date(entry.declinedOn).toLocaleDateString(),
+        entry.declinedReason,
+        new Date(entry.alternativeDate).toLocaleDateString()
+      ]),
+    });
+    doc.save(`${title}.pdf`);
+  };
 
   return (
     <Box p="8">
@@ -63,6 +83,9 @@ const DeclinedTasks = () => {
           width="40%"
           outline="1px solid"
         />
+        <Button colorScheme="blue" onClick={handleExportPDF}>
+          Export PDF
+        </Button>
       </Flex>
       <Box bg="white" p="4" borderRadius="md" boxShadow="md">
         <Table variant="simple">
