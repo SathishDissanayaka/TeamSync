@@ -45,7 +45,8 @@ const Collaborations = () => {
   };
 
   const filteredCollaborations = collaborations.filter(collaboration =>
-    getUserName(collaboration.assignee).toLowerCase().includes(searchTerm.toLowerCase())
+    getUserName(collaboration.assignee).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    collaboration.taskName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -54,7 +55,7 @@ const Collaborations = () => {
       <Box bg="gray.200" p="6" borderRadius="md" boxShadow="md" minH="80vh">
         <Flex mb="4" justify="space-between">
           <Input
-            placeholder="Search by 'Accepted By'"
+            placeholder="Search by Employee Name or Task Name"
             value={searchTerm}
             onChange={handleSearchChange}
             width="60%"
