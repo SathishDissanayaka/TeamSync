@@ -79,20 +79,23 @@ export default function NotificationBell({
     });
 
     socket.on('notification', (newNotification) => {
-      const name = userMap[newNotification.userID] || newNotification.userID;
-      const notificationWithName = {
-        ...newNotification,
-        displayName: name
-      };
-      setNotifications((prev) => [notificationWithName, ...prev]);
-      setUnreadCount((prev) => prev + 1);
-      toast({
-        title: newNotification.title,
-        description: newNotification.message.replace(/^\S+/, name),
-        status: 'info',
-        duration: 5000,
-        isClosable: true,
-      });
+      // Only show toast if the notification is for this user
+      if (newNotification.companyID === companyID) {
+        const name = userMap[newNotification.userID] || newNotification.userID;
+        const notificationWithName = {
+          ...newNotification,
+          displayName: name
+        };
+        setNotifications((prev) => [notificationWithName, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+        toast({
+          title: newNotification.title,
+          description: newNotification.message.replace(/^\\S+/, name),
+          status: 'info',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     });
 
     return () => {
