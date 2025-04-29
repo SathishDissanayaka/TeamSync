@@ -76,6 +76,31 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const updatedRequest = await Request.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+    // Notify assignee if reallocated (status set to 'pending')
+    if (updatedRequest && req.body.status === 'pending') {
+      const assigneeName = await getEmployeeName(updatedRequest.assignee);
+      const assignedByName = await getEmployeeName(updatedRequest.assignedBy);
+
+      const notification = new Notification({
+        companyID: updatedRequest.assignee,
+        userID: updatedRequest.assignee,
+        type: 'request',
+        title: 'Task Reallocated',
+        message: `${assignedByName} has reallocated the task: ${updatedRequest.taskName}`,
+        metadata: {
+          requestId: updatedRequest._id,
+          taskName: updatedRequest.taskName,
+          priority: updatedRequest.priority,
+          deadline: updatedRequest.deadline
+        }
+      });
+      await notification.save();
+      if (req.app.get('io')) {
+        req.app.get('io').emit('notification', notification);
+      }
+    }
+
     res.json(updatedRequest);
   } catch (err) {
     console.error('Failed to update request:', err);
