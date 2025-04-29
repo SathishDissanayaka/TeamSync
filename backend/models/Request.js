@@ -32,6 +32,21 @@ const RequestSchema = new mongoose.Schema({
     enum: ['pending', 'ongoing', 'completed', 'declined'],
     default: 'pending',
   },
+  progress: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 0
+  },
+  progressUpdates: [{
+    percentage: Number,
+    comment: String,
+    updatedBy: String,
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   acceptedOn: {
     type: Date,
     default: null,

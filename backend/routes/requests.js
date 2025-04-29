@@ -4,6 +4,7 @@ const Request = require('../models/Request');
 const Collaboration = require('../models/Collaboration');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 //sahan changes
 const Declined = require('../models/Declined');
@@ -229,7 +230,7 @@ router.put('/complete/:id', async (req, res) => {
   }
 });
 
-// Delete a request
+// Restore original delete endpoint for pending requests
 router.delete('/:id', async (req, res) => {
   try {
     await Request.findByIdAndDelete(req.params.id);
@@ -317,4 +318,69 @@ router.get('/declined', async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch all declined entries' });
   }
 });
+
+// Update task progress
+router.put('/progress/:id', async (req, res) => {
+  try {
+    const { progress, comment } = req.body;
+    const companyID = req.body.companyID; // Get from request body
+
+    if (progress < 0 || progress > 100) {
+      return res.status(400).json({ error: 'Progress must be between 0 and 100' });
+    }
+
+    const updatedRequest = await Request.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: { progress },
+        $push: {
+          progressUpdates: {
+            percentage: progress,
+            comment,
+            updatedBy: companyID,
+            updatedAt: new Date()
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedRequest) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Create notification for progress update
+    const notification = new Notification({
+      companyID: updatedRequest.assignedBy,
+      userID: companyID,
+      type: 'progress_update',
+      title: 'Task Progress Updated',
+      message: `Task "${updatedRequest.taskName}" progress updated to ${progress}%`,
+      metadata: {
+        requestId: updatedRequest._id,
+        taskName: updatedRequest.taskName,
+        progress,
+        comment
+      }
+    });
+    await notification.save();
+
+    res.json(updatedRequest);
+  } catch (err) {
+    console.error('Failed to update progress:', err);
+    res.status(500).json({ error: 'Failed to update progress' });
+  }
+});
+
+// Add endpoint to delete from Declined collection by declined entry _id
+router.delete('/declined/:id', async (req, res) => {
+  try {
+    await Declined.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Declined entry deleted' });
+  } catch (err) {
+    console.error('Failed to delete declined entry:', err);
+    res.status(500).json({ error: 'Failed to delete declined entry' });
+  }
+});
+
 module.exports = router;
