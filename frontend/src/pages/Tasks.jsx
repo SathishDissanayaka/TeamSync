@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 //sahan changes (i added some elements from chakra)
 import { Box, Heading, Text, VStack, Flex, Input, Select,Button, useToast, useDisclosure,Modal, ModalOverlay, ModalContent, ModalHeader,
-          ModalCloseButton, ModalBody, ModalFooter,FormControl, FormLabel, Textarea} from "@chakra-ui/react";
+          ModalCloseButton, ModalBody, ModalFooter,FormControl, FormLabel, Textarea, Progress, HStack} from "@chakra-ui/react";
+import Chat from '../components/Chat';
 
 
 const MyTasks = () => {
@@ -19,6 +20,17 @@ const MyTasks = () => {
     const [currentId, setCurrentId]   = useState(null);
     const [reason, setReason]         = useState('');
     const [altDate, setAltDate]       = useState('');
+
+  const { isOpen: isProgressOpen, onOpen: onProgressOpen, onClose: onProgressClose } = useDisclosure();
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [progressUpdate, setProgressUpdate] = useState({
+    progress: 0,
+    comment: ''
+  });
+
+  const { isOpen: isChatOpen, onOpen: onChatOpen, onClose: onChatClose } = useDisclosure();
+  const [selectedTaskForChat, setSelectedTaskForChat] = useState(null);
+  const [selectedChatId, setSelectedChatId] = useState(null);
 
   // Retrieve companyID from localStorage
   const companyID = localStorage.getItem("companyID");
@@ -101,7 +113,7 @@ const MyTasks = () => {
     onOpen();
   };
 
-// called when the modal’s “Submit” button is clicked
+// called when the modal's "Submit" button is clicked
   const handleDeclineSubmit = async () => {
     if (!reason || !altDate) {
       return toast({ title: "Please fill in both fields", status: "error" });
@@ -210,6 +222,110 @@ const MyTasks = () => {
     request.taskName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleProgressUpdate = async () => {
+    const currentProgress = selectedTask?.progress || 0;
+    const newProgress = progressUpdate.progress;
+    if (newProgress === undefined || newProgress === null || isNaN(newProgress)) {
+      toast({
+        title: "Error",
+        description: "Progress is required and must be a number.",
+        status: "error",
+        duration: 3000,
+      });
+      return;
+    }
+    if (newProgress <= currentProgress) {
+      toast({
+        title: "Error",
+        description: `Progress must be greater than current progress (${currentProgress}%)`,
+        status: "error",
+        duration: 3000,
+      });
+      return;
+    }
+    try {
+      await axios.put(`http://localhost:5000/api/requests/progress/${selectedTask._id}`, {
+        progress: newProgress,
+        comment: progressUpdate.comment,
+        companyID: companyID
+      });
+
+      // Update local state
+      setTodoRequests(prev => prev.map(task => 
+        task._id === selectedTask._id 
+          ? { ...task, progress: newProgress } 
+          : task
+      ));
+
+      // --- Send progress update message to chat ---
+      let chatId = selectedChatId;
+      if (!chatId) {
+        // Try to fetch chatId by taskId
+        try {
+          const chatRes = await axios.get(`http://localhost:5000/api/chat/task/${selectedTask._id}`);
+          chatId = chatRes.data._id;
+        } catch (err) {
+          // If chat does not exist, create it
+          const chatRes = await axios.post('http://localhost:5000/api/chat', {
+            name: selectedTask.taskName,
+            type: 'task',
+            participants: [selectedTask.assignedBy, selectedTask.assignee],
+            taskId: selectedTask._id,
+          });
+          chatId = chatRes.data._id;
+        }
+      }
+      if (chatId) {
+        let msg = `Progress updated to ${newProgress}%.`;
+        if (progressUpdate.comment && progressUpdate.comment.trim()) {
+          msg += ` Comment: ${progressUpdate.comment.trim()}`;
+        }
+        await axios.post(`http://localhost:5000/api/chat/${chatId}/messages`, {
+          sender: companyID,
+          content: msg,
+        });
+      }
+      // --- End send progress update message ---
+
+      toast({
+        title: "Progress updated",
+        description: "Task progress has been updated successfully",
+        status: "success",
+        duration: 3000,
+      });
+
+      onProgressClose();
+      setProgressUpdate({ progress: 0, comment: '' });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to update progress",
+        status: "error",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleChatClick = async (task) => {
+    try {
+      // Try to find an existing chat for this task
+      const res = await axios.get(`http://localhost:5000/api/chat/task/${task._id}`);
+      setSelectedTaskForChat(task);
+      setSelectedChatId(res.data._id);
+    } catch (err) {
+      // If not found, create it
+      const res = await axios.post('http://localhost:5000/api/chat', {
+        name: task.taskName,
+        type: 'task',
+        participants: [task.assignedBy, task.assignee], // adjust as needed
+        taskId: task._id,
+      });
+      setSelectedTaskForChat(task);
+      setSelectedChatId(res.data._id);
+    }
+    onChatOpen();
+  };
+
   return (
     <Box p="8">
       <Heading mb="8">Your Journal</Heading>
@@ -239,10 +355,24 @@ const MyTasks = () => {
                     <Text>{request.description}</Text>
                     <Text>Priority: {request.priority}</Text>
                     <Text>Deadline: {new Date(request.deadline).toLocaleDateString()}</Text>
+                    <Box mt={2}>
+                      <Text fontSize="sm">Progress: {request.progress || 0}%</Text>
+                      <Progress value={request.progress || 0} colorScheme="blue" size="sm" />
+                    </Box>
                   </Box>
-                  <Box>
-                    <Button size="sm" colorScheme="blue" onClick={() => handleMarkAsDone(request._id)}>Done</Button>
-                  </Box>
+                  {/*
+                    Use HStack to prevent button overlay and provide spacing between action buttons.
+                    This ensures a clean, non-overlapping layout for task actions.
+                  */}
+                  <HStack spacing={2} align="start">
+                    <Button size="sm" colorScheme="blue" onClick={() => {
+                      setSelectedTask(request);
+                      setProgressUpdate({ progress: request.progress || 0, comment: '' });
+                      onProgressOpen();
+                    }}>Update Progress</Button>
+                    <Button size="sm" colorScheme="purple" onClick={() => handleChatClick(request)}>Chat</Button>
+                    <Button size="sm" colorScheme="green" onClick={() => handleMarkAsDone(request._id)}>Done</Button>
+                  </HStack>
                 </Flex>
               </Box>
             ))}
@@ -316,6 +446,64 @@ const MyTasks = () => {
             Decline
           </Button>
         </ModalFooter>
+      </ModalContent>
+    </Modal>
+
+    {/* Progress Update Modal */}
+    <Modal isOpen={isProgressOpen} onClose={onProgressClose}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Update Progress</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing={4}>
+            <FormControl isRequired>
+              <FormLabel>Progress (%)</FormLabel>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                value={progressUpdate.progress}
+                onChange={(e) => setProgressUpdate(prev => ({ ...prev, progress: parseInt(e.target.value) }))}
+                required
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Comment</FormLabel>
+              <Textarea
+                value={progressUpdate.comment}
+                onChange={(e) => setProgressUpdate(prev => ({ ...prev, comment: e.target.value }))}
+                placeholder="Add a comment about the progress..."
+              />
+            </FormControl>
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" mr={3} onClick={onProgressClose}>
+            Cancel
+          </Button>
+          <Button colorScheme="blue" onClick={handleProgressUpdate}>
+            Update
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+
+    {/* Chat Modal */}
+    <Modal isOpen={isChatOpen} onClose={onChatClose} size="xl">
+      <ModalOverlay />
+      <ModalContent h="80vh" pb={6}>
+        <ModalHeader>Chat - {selectedTaskForChat?.taskName}</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody p={0}>
+          {selectedTaskForChat && selectedChatId && (
+            <Chat
+              chatId={selectedChatId}
+              currentUser={companyID}
+              users={users}
+            />
+          )}
+        </ModalBody>
       </ModalContent>
     </Modal>
 
