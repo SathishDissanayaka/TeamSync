@@ -20,8 +20,11 @@ import {
   Select,
   useToast,
   FormErrorMessage,
+  Progress,
+  HStack,
 } from "@chakra-ui/react";
 import axios from "axios";
+import Chat from '../components/Chat';
 
 const Requests = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -41,6 +44,10 @@ const Requests = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentRequestId, setCurrentRequestId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [acceptedRequests, setAcceptedRequests] = useState([]);
+  const { isOpen: isAcceptedChatOpen, onOpen: onAcceptedChatOpen, onClose: onAcceptedChatClose } = useDisclosure();
+  const [selectedAcceptedRequestForChat, setSelectedAcceptedRequestForChat] = useState(null);
+  const [declinedEntryId, setDeclinedEntryId] = useState(null);
 
   // Retrieve companyID from localStorage
   const companyID = localStorage.getItem("companyID");
@@ -57,6 +64,10 @@ const Requests = () => {
 
         const completedRes = await axios.get(`http://localhost:5000/api/requests/completed/${companyID}`);
         setCompletedRequests(completedRes.data);
+
+        // Fetch accepted/ongoing requests created by this user
+        const acceptedRes = await axios.get(`http://localhost:5000/api/requests/ongoing?assignedBy=${companyID}`);
+        setAcceptedRequests(acceptedRes.data);
       } catch (err) {
         console.error("Error fetching data", err);
       }
@@ -64,6 +75,27 @@ const Requests = () => {
 
     fetchData();
   }, [companyID]);
+
+  useEffect(() => {
+    // Check if there is a reallocateRequest in localStorage
+    const reallocateData = localStorage.getItem('reallocateRequest');
+    if (reallocateData) {
+      const request = JSON.parse(reallocateData);
+      setNewRequest({
+        taskName: request.taskName || request.title || "",
+        description: request.description || "",
+        priority: request.priority || "",
+        deadline: (request.deadline || request.alternativeDate || "").slice(0, 10),
+        assignee: request.assignee || "",
+        assignedBy: request.assignedBy || "",
+      });
+      setCurrentRequestId(request.request || request._id); // request.request is the original request id, request._id is the declined doc id
+      setIsEditing(true);
+      onOpen();
+      setDeclinedEntryId(request._id); // Store declined entry id for later deletion
+      localStorage.removeItem('reallocateRequest');
+    }
+  }, [onOpen]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -131,7 +163,10 @@ const Requests = () => {
     if (!validateForm()) return;
 
     try {
-      const requestData = { ...newRequest, assignedBy: companyID };
+      // If this is a reallocation, set status to 'pending'
+      const requestData = declinedEntryId
+        ? { ...newRequest, assignedBy: companyID, status: 'pending' }
+        : { ...newRequest, assignedBy: companyID };
       const res = await axios.put(`http://localhost:5000/api/requests/${currentRequestId}`, requestData, {
         headers: {
           "Content-Type": "application/json",
@@ -145,6 +180,11 @@ const Requests = () => {
         duration: 5000,
         isClosable: true,
       });
+      // Delete the declined entry if this was a reallocation
+      if (declinedEntryId) {
+        await axios.delete(`http://localhost:5000/api/requests/declined/${declinedEntryId}`);
+        setDeclinedEntryId(null);
+      }
       onClose();
     } catch (err) {
       console.error("Error updating request", err.response ? err.response.data : err);
@@ -209,17 +249,21 @@ const Requests = () => {
     request.taskName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Handler for opening chat modal for accepted requests
+  const handleAcceptedChatClick = (request) => {
+    setSelectedAcceptedRequestForChat(request);
+    onAcceptedChatOpen();
+  };
+
   return (
     <Box p="8">
       <Heading mb="8">Your Requests</Heading>
       <Flex>
         <Box flex="1" mr="8" bg="gray.200" p="6" borderRadius="md" boxShadow="md" minH="80vh">
-
-            <Heading size="md" mb="3">Pending Requests</Heading>
-            <Button mb="4" colorScheme="blue" onClick={onOpen}>
-              + Make Request
-            </Button>
-
+          <Heading size="md" mb="3">Pending Requests</Heading>
+          <Button mb="4" colorScheme="blue" onClick={onOpen}>
+            + Make Request
+          </Button>
           <VStack spacing="4">
             {pendingRequests.map((request) => (
               <Box key={request._id} p="4" boxShadow="md" borderRadius="md" bg="white" w="100%" border="1px" borderColor="gray.200">
@@ -245,7 +289,7 @@ const Requests = () => {
           </VStack>
         </Box>
         <Box flex="1" bg="gray.200" p="6" borderRadius="md" boxShadow="md" minH="80vh">
-          <Heading size="md" mb="4">Past Requests</Heading>
+          <Heading size="md" mb="4">Resolved Requests</Heading>
           <Input
             placeholder="Search by request name"
             value={searchTerm}

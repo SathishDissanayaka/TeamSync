@@ -70,6 +70,7 @@ const Collaborations = () => {
               <Th>Accepted By</Th>
               <Th>Expected On</Th>
               <Th>Initiated On</Th>
+              <Th>Progress</Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -80,6 +81,7 @@ const Collaborations = () => {
                 <Td>{getUserName(collaboration.assignee)}</Td>
                 <Td>{new Date(collaboration.deadline).toLocaleDateString()}</Td>
                 <Td>{new Date(collaboration.createdAt).toLocaleDateString()}</Td>
+                <Td>{typeof collaboration.progress === 'number' ? `${collaboration.progress}%` : '0%'}</Td>
               </Tr>
             ))}
           </Tbody>

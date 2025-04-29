@@ -11,7 +11,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['request', 'accept', 'decline', 'mark_as_done', 'feedback'],
+    enum: ['request', 'accept', 'decline', 'mark_as_done', 'feedback', 'progress_update', 'chat'],
     required: true,
   },
   title: {

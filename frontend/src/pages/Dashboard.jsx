@@ -9,6 +9,7 @@ import Requests from "./Requests";
 import Tasks from "./Tasks";
 import Collaborations from "./Collaborations";
 import Feedback from "./Feedback";
+import MyCollaborationHub from './MyCollaborationHub';
 
 import NotificationBell from "../components/NotificationBell";
 
@@ -206,6 +207,7 @@ const UserSidebar = () => {
         <Button variant="ghost" leftIcon={<FiUsers />} onClick={() => navigate("/dashboard/collaborations")}>
           Collaborations
         </Button>
+        <Button variant="ghost" leftIcon={<FiPenTool />} onClick={() => navigate("/dashboard/my-collaboration-hub")}>My Collaboration Hub</Button>
         <Button variant="ghost" leftIcon={<FiPenTool />} onClick={() => navigate("/dashboard/feedback")}>
           Feedback
         </Button>
@@ -237,6 +239,7 @@ const UserDashboardLayout = () => (
         <Route path="requests" element={<Requests />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="collaborations" element={<Collaborations />} />
+        <Route path="my-collaboration-hub" element={<MyCollaborationHub />} />
         <Route path="feedback" element={<Feedback />} />
       </Routes>
     </Box>
