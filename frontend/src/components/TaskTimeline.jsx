@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Progress,
-  Badge,
-  useColorModeValue,
-} from '@chakra-ui/react';
+import {Box,VStack,HStack,Text,Progress,Badge,useColorModeValue,} from '@chakra-ui/react';
 
 const TaskTimeline = ({ task }) => {
   const bgColor = useColorModeValue('white', 'gray.700');

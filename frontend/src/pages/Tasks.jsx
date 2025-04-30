@@ -4,6 +4,7 @@ import axios from "axios";
 import { Box, Heading, Text, VStack, Flex, Input, Select,Button, useToast, useDisclosure,Modal, ModalOverlay, ModalContent, ModalHeader,
           ModalCloseButton, ModalBody, ModalFooter,FormControl, FormLabel, Textarea, Progress, HStack} from "@chakra-ui/react";
 import Chat from '../components/Chat';
+import TaskTimelineModal from '../components/TaskTimelineModal';
 
 
 const MyTasks = () => {
@@ -31,6 +32,10 @@ const MyTasks = () => {
   const { isOpen: isChatOpen, onOpen: onChatOpen, onClose: onChatClose } = useDisclosure();
   const [selectedTaskForChat, setSelectedTaskForChat] = useState(null);
   const [selectedChatId, setSelectedChatId] = useState(null);
+
+  // Add new state and disclosure for timeline modal
+  const { isOpen: isTimelineOpen, onOpen: onTimelineOpen, onClose: onTimelineClose } = useDisclosure();
+  const [selectedTaskForTimeline, setSelectedTaskForTimeline] = useState(null);
 
   // Retrieve companyID from localStorage
   const companyID = localStorage.getItem("companyID");
@@ -348,7 +353,22 @@ const MyTasks = () => {
           </Flex>
           <VStack spacing="4">  {/* Vertically Align the stack */}
             {filteredTodoRequests.map(request => (
-              <Box key={request._id} p="4" boxShadow="md" borderRadius="md" bg="white" w="100%" border="1px" borderColor="gray.200">
+              <Box 
+                key={request._id} 
+                p="4" 
+                boxShadow="md" 
+                borderRadius="md" 
+                bg="white" 
+                w="100%" 
+                border="1px" 
+                borderColor="gray.200"
+                cursor="pointer"
+                onClick={() => {
+                  setSelectedTaskForTimeline(request);
+                  onTimelineOpen();
+                }}
+                _hover={{ bg: 'gray.50' }}
+              >
                 <Flex justify="space-between">
                   <Box>
                     <Heading size="sm">{request.taskName}</Heading>
@@ -365,13 +385,20 @@ const MyTasks = () => {
                     This ensures a clean, non-overlapping layout for task actions.
                   */}
                   <HStack spacing={2} align="start">
-                    <Button size="sm" colorScheme="blue" onClick={() => {
+                    <Button size="sm" colorScheme="blue" onClick={(e) => {
+                      e.stopPropagation();
                       setSelectedTask(request);
                       setProgressUpdate({ progress: request.progress || 0, comment: '' });
                       onProgressOpen();
                     }}>Update Progress</Button>
-                    <Button size="sm" colorScheme="purple" onClick={() => handleChatClick(request)}>Chat</Button>
-                    <Button size="sm" colorScheme="green" onClick={() => handleMarkAsDone(request._id)}>Done</Button>
+                    <Button size="sm" colorScheme="purple" onClick={(e) => {
+                      e.stopPropagation();
+                      handleChatClick(request);
+                    }}>Chat</Button>
+                    <Button size="sm" colorScheme="green" onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkAsDone(request._id);
+                    }}>Done</Button>
                   </HStack>
                 </Flex>
               </Box>
@@ -408,6 +435,14 @@ const MyTasks = () => {
           </VStack>
         </Box>
       </Flex>
+
+      {/* Add TaskTimelineModal */}
+      <TaskTimelineModal 
+        isOpen={isTimelineOpen}
+        onClose={onTimelineClose}
+        task={selectedTaskForTimeline}
+        users={users}
+      />
 
       {/* Modal for Declining a Request (Sahan Changes) */}
              

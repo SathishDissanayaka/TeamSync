@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Box, Heading, Table, Thead, Tbody, Tr, Th, Td, Input, Flex } from "@chakra-ui/react";
 import axios from "axios";
+import {
+  Box,
+  Heading,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Input,
+  Flex,
+  Progress,
+  Text,
+} from "@chakra-ui/react";
 
 const Collaborations = () => {
   const [collaborations, setCollaborations] = useState([]);
@@ -8,45 +21,35 @@ const Collaborations = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    // Fetch collaborations
-    const fetchCollaborations = async () => {
+    const fetchData = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/collaborations");
-        setCollaborations(res.data);
-      } catch (err) {
-        console.error("Error fetching collaborations", err);
-      }
-    };
-
-    // Fetch all users to map companyID to full name
-    const fetchUsers = async () => {
-      try {
-        const res = await axios.get("http://localhost:5000/api/admin/users");
-        const usersMap = res.data.reduce((acc, user) => {
+        // Fetch all users
+        const usersRes = await axios.get("http://localhost:5000/api/admin/users");
+        const usersMap = usersRes.data.reduce((acc, user) => {
           acc[user.companyID] = user.fullName;
           return acc;
         }, {});
         setUsers(usersMap);
+
+        // Fetch ongoing collaborations
+        const collabRes = await axios.get("http://localhost:5000/api/requests/ongoing");
+        setCollaborations(collabRes.data);
       } catch (err) {
-        console.error("Error fetching users", err);
+        console.error("Error fetching data:", err);
       }
     };
 
-    fetchCollaborations();
-    fetchUsers();
+    fetchData();
   }, []);
 
   const getUserName = (companyID) => {
-    return users[companyID] || "Unknown";
+    return users[companyID] || companyID;
   };
 
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const filteredCollaborations = collaborations.filter(collaboration =>
-    getUserName(collaboration.assignee).toLowerCase().includes(searchTerm.toLowerCase()) ||
-    collaboration.taskName.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCollaborations = collaborations.filter((collab) =>
+    getUserName(collab.assignedBy).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getUserName(collab.assignee).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    collab.taskName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -57,7 +60,7 @@ const Collaborations = () => {
           <Input
             placeholder="Search by Employee Name or Task Name"
             value={searchTerm}
-            onChange={handleSearchChange}
+            onChange={(e) => setSearchTerm(e.target.value)}
             width="60%"
             outline={"1px solid"}
           />
@@ -74,7 +77,7 @@ const Collaborations = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {filteredCollaborations.map(collaboration => (
+            {filteredCollaborations.map((collaboration) => (
               <Tr key={collaboration._id}>
                 <Td>{collaboration.taskName}</Td>
                 <Td>{getUserName(collaboration.assignedBy)}</Td>
