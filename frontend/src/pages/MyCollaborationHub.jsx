@@ -19,6 +19,7 @@ const MyCollaborationHub = () => {
   // Get current user
   const companyID = localStorage.getItem("companyID");
 
+
   useEffect(() => {
     // Fetch users, accepted, and declined requests
     const fetchData = async () => {
@@ -101,6 +102,7 @@ const MyCollaborationHub = () => {
             <Tr>
               <Th>Task Name</Th>
               <Th>Assignee</Th>
+              <Th>Priority</Th>
               <Th>Deadline</Th>
               <Th>Progress</Th>
               <Th>Actions</Th>
@@ -119,6 +121,7 @@ const MyCollaborationHub = () => {
               >
                 <Td>{request.taskName}</Td>
                 <Td>{getAssigneeName(request.assignee)}</Td>
+                <Td>{request.priority}</Td>
                 <Td>{new Date(request.deadline).toLocaleDateString()}</Td>
                 <Td>
                   <Progress value={request.progress || 0} colorScheme="blue" size="sm" />
@@ -187,6 +190,7 @@ const MyCollaborationHub = () => {
         isOpen={isTimelineOpen}
         onClose={onTimelineClose}
         task={selectedTaskForTimeline}
+        users={usersMap}
       />
       {/* Chat Modal for accepted requests */}
       <Modal isOpen={isAcceptedChatOpen} onClose={onAcceptedChatClose} size="xl">

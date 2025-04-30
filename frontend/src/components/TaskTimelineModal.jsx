@@ -12,13 +12,31 @@ import {
   Progress,
   Box,
   useColorModeValue,
+  Badge,
 } from '@chakra-ui/react';
 
-const TaskTimelineModal = ({ isOpen, onClose, task }) => {
+const TaskTimelineModal = ({ isOpen, onClose, task, users }) => {
   const bgColor = useColorModeValue('white', 'gray.700');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
 
   if (!task) return null;
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'High': return 'red';
+      case 'Medium': return 'orange';
+      case 'Low': return 'green';
+      default: return 'gray';
+    }
+  };
+
+  const getRequesterName = (assignedBy) => {
+    return users?.[assignedBy] || assignedBy;
+  };
+
+  const getAssigneeName = (assignee) => {
+    return users?.[assignee] || assignee;
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
@@ -29,8 +47,25 @@ const TaskTimelineModal = ({ isOpen, onClose, task }) => {
         <ModalBody pb={6}>
           <VStack align="stretch" spacing={4}>
             <Box>
-              <Text fontWeight="bold" fontSize="lg">{task.taskName}</Text>
+              <HStack justify="space-between" mb={2}>
+                <Text fontWeight="bold" fontSize="lg">{task.taskName}</Text>
+                <Badge colorScheme={getPriorityColor(task.priority)}>{task.priority}</Badge>
+              </HStack>
               <Text color="gray.500" fontSize="sm">{task.description}</Text>
+            </Box>
+
+            <Box>
+              <Text fontSize="sm" color="gray.500">Task Details</Text>
+              <HStack spacing={4} mt={1}>
+                <Box>
+                  <Text fontSize="xs" color="gray.500">Requester</Text>
+                  <Text fontSize="sm">{getRequesterName(task.assignedBy)}</Text>
+                </Box>
+                <Box>
+                  <Text fontSize="xs" color="gray.500">Assignee</Text>
+                  <Text fontSize="sm">{getAssigneeName(task.assignee)}</Text>
+                </Box>
+              </HStack>
             </Box>
 
             <Box>

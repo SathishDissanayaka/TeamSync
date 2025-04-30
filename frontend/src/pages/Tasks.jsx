@@ -441,6 +441,7 @@ const MyTasks = () => {
         isOpen={isTimelineOpen}
         onClose={onTimelineClose}
         task={selectedTaskForTimeline}
+        users={users}
       />
 
       {/* Modal for Declining a Request (Sahan Changes) */}
