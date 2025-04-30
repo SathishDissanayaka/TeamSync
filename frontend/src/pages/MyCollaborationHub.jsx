@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Box, Heading, Table, Thead, Tbody, Tr, Th, Td, VStack, Text, Flex, Button, Progress, HStack, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody } from "@chakra-ui/react";
+import { Box, Heading, Table, Thead, Tbody, Tr, Th, Td, VStack, Text, Flex, Button, Progress, HStack, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody, ModalFooter, FormControl, FormLabel, Textarea } from "@chakra-ui/react";
 import axios from "axios";
 import Chat from '../components/Chat';
 import { useNavigate } from 'react-router-dom';
+import TaskTimelineModal from '../components/TaskTimelineModal';
 
 const MyCollaborationHub = () => {
   const [acceptedRequests, setAcceptedRequests] = useState([]);
@@ -12,6 +13,8 @@ const MyCollaborationHub = () => {
   const [selectedAcceptedRequestForChat, setSelectedAcceptedRequestForChat] = useState(null);
   const [selectedChatId, setSelectedChatId] = useState(null);
   const navigate = useNavigate();
+  const { isOpen: isTimelineOpen, onOpen: onTimelineOpen, onClose: onTimelineClose } = useDisclosure();
+  const [selectedTaskForTimeline, setSelectedTaskForTimeline] = useState(null);
 
   // Get current user
   const companyID = localStorage.getItem("companyID");
@@ -98,47 +101,45 @@ const MyCollaborationHub = () => {
             <Tr>
               <Th>Task Name</Th>
               <Th>Assignee</Th>
-              <Th>Priority</Th>
               <Th>Deadline</Th>
               <Th>Progress</Th>
-              <Th>Action</Th>
+              <Th>Actions</Th>
             </Tr>
           </Thead>
           <Tbody>
             {filteredAcceptedRequests.map((request) => (
-              <Tr key={request._id}>
+              <Tr 
+                key={request._id}
+                cursor="pointer"
+                onClick={() => {
+                  setSelectedTaskForTimeline(request);
+                  onTimelineOpen();
+                }}
+                _hover={{ bg: 'gray.50' }}
+              >
                 <Td>{request.taskName}</Td>
                 <Td>{getAssigneeName(request.assignee)}</Td>
-                <Td>{request.priority}</Td>
                 <Td>{new Date(request.deadline).toLocaleDateString()}</Td>
                 <Td>
-                  <Text fontSize="sm">{request.progress || 0}%</Text>
                   <Progress value={request.progress || 0} colorScheme="blue" size="sm" />
+                  <Text fontSize="xs" color="gray.500">{request.progress || 0}%</Text>
                 </Td>
                 <Td>
-                  <Button size="sm" colorScheme="purple" onClick={() => handleAcceptedChatClick(request)}>Chat</Button>
+                  <Button 
+                    size="sm" 
+                    colorScheme="blue" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAcceptedChatClick(request);
+                    }}
+                  >
+                    Chat
+                  </Button>
                 </Td>
               </Tr>
             ))}
           </Tbody>
         </Table>
-        {/* Chat Modal for accepted requests */}
-        <Modal isOpen={isAcceptedChatOpen} onClose={onAcceptedChatClose} size="xl">
-          <ModalOverlay />
-          <ModalContent h="80vh">
-            <ModalHeader>Chat - {selectedAcceptedRequestForChat?.taskName}</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody p={0}>
-              {selectedChatId && (
-                <Chat
-                  chatId={selectedChatId}
-                  currentUser={companyID}
-                  users={usersMap}
-                />
-              )}
-            </ModalBody>
-          </ModalContent>
-        </Modal>
       </Box>
       {/* Declined Requests Section */}
       <Box bg="gray.200" p="6" borderRadius="md" boxShadow="md">
@@ -181,6 +182,29 @@ const MyCollaborationHub = () => {
           </Tbody>
         </Table>
       </Box>
+      {/* Add TaskTimelineModal */}
+      <TaskTimelineModal 
+        isOpen={isTimelineOpen}
+        onClose={onTimelineClose}
+        task={selectedTaskForTimeline}
+      />
+      {/* Chat Modal for accepted requests */}
+      <Modal isOpen={isAcceptedChatOpen} onClose={onAcceptedChatClose} size="xl">
+        <ModalOverlay />
+        <ModalContent h="80vh">
+          <ModalHeader>Chat - {selectedAcceptedRequestForChat?.taskName}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody p={0}>
+            {selectedChatId && (
+              <Chat
+                chatId={selectedChatId}
+                currentUser={companyID}
+                users={usersMap}
+              />
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 };
