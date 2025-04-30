@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import EvaluationModals from '../components/EvaluationModals';
 import DatePicker from 'react-datepicker'; 
-import 'react-datepicker/dist/react-datepicker.css'; 
+import 'react-datepicker/dist/react-datepicker.css';
 
 const Evaluation = () => {
   const [employees, setEmployees] = useState([]);
@@ -200,30 +200,42 @@ const Evaluation = () => {
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
-    const title = `Employee Evaluations - ${filterDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`; // Change to use filterDate
+    const title = `Employee Evaluations - ${filterDate.toLocaleString('default', { month: 'long', year: 'numeric' })}`;
     doc.text(title, 20, 10);
     autoTable(doc, {
       head: [['Employee', 'Role', 'Acceptance Rate', 'Completed Rate', 'Ontime Rate', 'Grade']],
       body: sortedEmployees.map(employee => {
-        const evaluation = evaluations.find(evaluation => evaluation.employee === employee.fullName && evaluation.month === filterDate.toLocaleString('default', { month: 'long', year: 'numeric' })); // Change to use filterDate
+        const evaluation = evaluations.find(e => 
+          e.employee === employee.fullName && 
+          e.month === filterDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+        );
+        
         const requests = employee.requests.filter(request => {
           const requestDate = new Date(request.createdAt);
-          const startDate = new Date(filterDate.getFullYear(), filterDate.getMonth(), 1); 
-          const endDate = new Date(filterDate.getFullYear(), filterDate.getMonth() + 1, 0); 
-          return requestDate >= startDate && requestDate <= endDate;
+          return (
+            requestDate.getMonth() === filterDate.getMonth() &&
+            requestDate.getFullYear() === filterDate.getFullYear()
+          );
         });
-        const accepted = requests.filter(request => request.status === 'ongoing').length;
-        const declined = requests.filter(request => request.status === 'declined').length;
-        const completed = requests.filter(request => request.status === 'completed').length;
-        const acceptanceRate = (accepted / (accepted + declined)) * 100 || 0;
-        const completedRate = (completed / requests.length) * 100 || 0;
-        const ontimeRate = (requests.filter(request => request.status === 'completed' && new Date(request.deadline) >= new Date(request.completedOn)).length / completed) * 100 || 0;
+        
+        const totalRequests = requests.length;
+        const accepted = requests.filter(r => r.status === 'ongoing').length;
+        const declined = requests.filter(r => r.status === 'declined').length;
+        const completed = requests.filter(r => r.status === 'completed').length;
+        
+        const acceptanceRate = (accepted + declined) > 0 ? 
+          (accepted / (accepted + declined + completed)) * 100 : 0;
+        const completedRate = totalRequests > 0 ? 
+          (completed / totalRequests) * 100 : 0;
+        const ontimeRate = completed > 0 ? 
+          (requests.filter(r => r.status === 'completed' && new Date(r.completedOn) <= new Date(r.deadline)).length / completed) * 100 : 0;
+        
         return [
           employee.fullName,
           employee.role,
-          `${acceptanceRate.toFixed(2)}%`,
-          `${completedRate.toFixed(2)}%`,
-          `${ontimeRate.toFixed(2)}%`,
+          `${acceptanceRate.toFixed(0)}%`,
+          `${completedRate.toFixed(0)}%`,
+          `${ontimeRate.toFixed(0)}%`,
           evaluation ? evaluation.grade : 'N/A',
         ];
       }),
@@ -237,18 +249,17 @@ const Evaluation = () => {
 
   const sortedEmployees = [...filteredEmployees].sort((a, b) => {
     if (sort === 'grade') {
-      const aEvaluation = evaluations.find(evaluation => evaluation.employee === a.fullName);
-      const bEvaluation = evaluations.find(evaluation => evaluation.employee === b.fullName);
+      const aEvaluation = evaluations.find(e => e.employee === a.fullName);
+      const bEvaluation = evaluations.find(e => e.employee === b.fullName);
       return (bEvaluation?.grade || '').localeCompare(aEvaluation?.grade || '');
     } else if (sort === 'status') {
-      const aEvaluation = evaluations.find(evaluation => evaluation.employee === a.fullName);
-      const bEvaluation = evaluations.find(evaluation => evaluation.employee === b.fullName);
+      const aEvaluation = evaluations.find(e => e.employee === a.fullName);
+      const bEvaluation = evaluations.find(e => e.employee === b.fullName);
       return (aEvaluation ? 1 : -1) - (bEvaluation ? 1 : -1);
     }
     return 0;
   });
 
-  //validation to stop evaluation of future dates
   const isFutureDate = filterDate > new Date();
 
   return (
@@ -262,31 +273,30 @@ const Evaluation = () => {
             onChange={handleSearchChange}
             flex="1"
             mr="4"
-            outline={"1px solid"}
+            outline="1px solid"
           />
           <Button onClick={handleExportPDF} colorScheme="blue">
             Export PDF
           </Button>
         </Box>
-        <FormControl mb="4" outline={"1px solid black"} borderRadius={"md"} padding={"3"}> 
-          <FormLabel>Filter by Month and Year</FormLabel> 
+        <FormControl mb="4" outline="1px solid black" borderRadius="md" padding="3">
+          <FormLabel>Filter by Month and Year</FormLabel>
           <DatePicker
             selected={filterDate}
             onChange={(date) => setFilterDate(date)}
             dateFormat="MM/yyyy"
             showMonthYearPicker
-            outline={"1px solid black"}
-          /> 
+          />
         </FormControl>
         <FormControl mb="4">
           <FormLabel>Sort By</FormLabel>
-          <Select value={sort} onChange={handleSortChange} outline={"1px solid"}>
+          <Select value={sort} onChange={handleSortChange} outline="1px solid">
             <option value="none">None</option>
             <option value="grade">Grade (Highest First)</option>
             <option value="status">Evaluation Status (Not Evaluated First)</option>
           </Select>
         </FormControl>
-        <Table variant="simple" >
+        <Table variant="simple">
           <Thead>
             <Tr>
               <Th>Employee</Th>
@@ -300,19 +310,31 @@ const Evaluation = () => {
           </Thead>
           <Tbody>
             {sortedEmployees.map((employee) => {
-              const evaluation = evaluations.find((evaluation) => evaluation.employee === employee.fullName && evaluation.month === filterDate.toLocaleString('default', { month: 'long', year: 'numeric' })); // Change to use filterDate
+              const evaluation = evaluations.find(e => 
+                e.employee === employee.fullName && 
+                e.month === filterDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+              );
+              
               const requests = employee.requests.filter(request => {
                 const requestDate = new Date(request.createdAt);
-                const startDate = new Date(filterDate.getFullYear(), filterDate.getMonth(), 1); 
-                const endDate = new Date(filterDate.getFullYear(), filterDate.getMonth() + 1, 0); 
-                return requestDate >= startDate && requestDate <= endDate;
+                return (
+                  requestDate.getMonth() === filterDate.getMonth() &&
+                  requestDate.getFullYear() === filterDate.getFullYear()
+                );
               });
-              const accepted = requests.filter(request => request.status === 'ongoing').length;
-              const declined = requests.filter(request => request.status === 'declined').length;
-              const completed = requests.filter(request => request.status === 'completed').length;
-              const acceptanceRate = (accepted / (accepted + declined)) * 100 || 0;
-              const completedRate = (completed / requests.length) * 100 || 0;
-              const ontimeRate = (requests.filter(request => request.status === 'completed' && new Date(request.deadline) >= new Date(request.completedOn)).length / completed) * 100 || 0;
+              
+              const totalRequests = requests.length;
+              const accepted = requests.filter(r => r.status === 'ongoing').length;
+              const declined = requests.filter(r => r.status === 'declined').length;
+              const completed = requests.filter(r => r.status === 'completed').length;
+              
+              const acceptanceRate = (accepted + declined) > 0 ? 
+                (accepted / (accepted + declined + completed)) * 100 : 0;
+              const completedRate = totalRequests > 0 ? 
+                (completed / totalRequests) * 100 : 0;
+              const ontimeRate = completed > 0 ? 
+                (requests.filter(r => r.status === 'completed' && new Date(r.completedOn) <= new Date(r.deadline)).length / completed) * 100 : 0;
+              
               return (
                 <Tr key={employee.fullName}>
                   <Td>
@@ -321,13 +343,17 @@ const Evaluation = () => {
                     </Button>
                   </Td>
                   <Td>{employee.role}</Td>
-                  <Td>{`${acceptanceRate.toFixed(0)}%`}</Td>
-                  <Td>{`${completedRate.toFixed(0)}%`}</Td>
-                  <Td>{`${ontimeRate.toFixed(0)}%`}</Td>
+                  <Td>{totalRequests > 0 ? `${acceptanceRate.toFixed(0)}%` : 'N/A'}</Td>
+                  <Td>{totalRequests > 0 ? `${completedRate.toFixed(0)}%` : 'N/A'}</Td>
+                  <Td>{completed > 0 ? `${ontimeRate.toFixed(0)}%` : 'N/A'}</Td>
                   <Td>{evaluation ? evaluation.grade : 'N/A'}</Td>
                   <Td>
                     <Box display="flex" alignItems="center">
-                      <Button colorScheme="blue" onClick={() => handleEvaluate(employee)} disabled={!!evaluation || isFutureDate}>
+                      <Button 
+                        colorScheme="blue" 
+                        onClick={() => handleEvaluate(employee)} 
+                        disabled={!!evaluation || isFutureDate}
+                      >
                         {evaluation ? 'Evaluated' : 'Evaluate'}
                       </Button>
                       <Menu>
@@ -369,7 +395,7 @@ const Evaluation = () => {
           <ModalCloseButton />
           <ModalBody>
             {evaluations
-              .filter(evaluation => evaluation.employee === selectedEmployee?.fullName)
+              .filter(e => e.employee === selectedEmployee?.fullName)
               .map((evaluation, index) => (
                 <Box key={index} mb="4" p="4" borderWidth="1px" borderRadius="md">
                   <Text><strong>Grade:</strong> {evaluation.grade}</Text>
