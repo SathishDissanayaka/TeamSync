@@ -337,7 +337,7 @@ const Requests = () => {
             </FormControl>
             <FormControl mb="4" isInvalid={errors.deadline}>
               <FormLabel>Deadline</FormLabel>
-              <Input type="date" name="deadline" value={newRequest.deadline} onChange={handleInputChange} />
+              <Input type="date" name="deadline" value={newRequest.deadline} onChange={handleInputChange} min={new Date().toISOString().split('T')[0]} />
               <FormErrorMessage>{errors.deadline}</FormErrorMessage>
             </FormControl>
             <FormControl mb="4" isInvalid={errors.assignee}>
